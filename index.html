@@ -17,6 +17,366 @@
 
   <!-- Your App code goes here -->
   <script type="text/babel">
+    function App() {
+  const [cart, setCart] = React.useState([]);
+  const [currentView, setCurrentView] = React.useState('home');
+  const [budget] = React.useState(50);
+  const [showRecommendation, setShowRecommendation] = React.useState(false);
+  const [startTime] = React.useState(Date.now());
+  const [participantId] = React.useState(() => 'P' + Math.random().toString(36).substr(2, 9));
+  const [condition] = React.useState('minimalist'); // Change to 'maximalist' for other version
+  const [dataSubmitted, setDataSubmitted] = React.useState(false);
+
+  const products = [
+    { id: 1, name: "Wireless Headphones", price: 29.99, image: "https://placehold.co/200x200/4A90E2/FFFFFF?text=Headphones" },
+    { id: 2, name: "Phone Case", price: 12.99, image: "https://placehold.co/200x200/7ED321/FFFFFF?text=Phone+Case" },
+    { id: 3, name: "Bluetooth Speaker", price: 24.99, image: "https://placehold.co/200x200/F5A623/FFFFFF?text=Speaker" },
+    { id: 4, name: "USB Cable", price: 8.99, image: "https://placehold.co/200x200/BD10E0/FFFFFF?text=USB+Cable" },
+    { id: 5, name: "Power Bank", price: 19.99, image: "https://placehold.co/200x200/B8E986/FFFFFF?text=Power+Bank" }
+  ];
+
+  const recommendedItem = { id: 6, name: "Screen Cleaner Kit", price: 6.99, image: "https://placehold.co/200x200/50E3C2/FFFFFF?text=Cleaner+Kit" };
+
+  const addToCart = (product) => {
+    setCart([...cart, product]);
+  };
+
+  const removeFromCart = (productId) => {
+    setCart(cart.filter(item => item.id !== productId));
+  };
+
+  const getTotalSpent = () => {
+    return cart.reduce((total, item) => total + item.price, 0);
+  };
+
+  const getRemainingBudget = () => {
+    return budget - getTotalSpent();
+  };
+
+  const proceedToCheckout = () => {
+    setShowRecommendation(true);
+    setCurrentView('checkout');
+  };
+
+  const submitDataToGoogleSheets = async (experimentData) => {
+    const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE'; // Replace with your deployed script URL
+    
+    try {
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(experimentData)
+      });
+      
+      if (response.ok) {
+        console.log('Data successfully submitted to Google Sheets');
+        return true;
+      } else {
+        console.error('Failed to submit data');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error submitting data:', error);
+      return false;
+    }
+  };
+
+  const completeOrder = async () => {
+    const timeSpent = (Date.now() - startTime) / 1000; // Convert to seconds
+    
+    const experimentData = {
+      participantId: participantId,
+      condition: condition,
+      totalSpent: getTotalSpent(),
+      itemsPurchased: cart.length,
+      impulseItemAdded: cart.some(item => item.id === 6),
+      timeSpent: timeSpent,
+      cartContents: cart.map(item => item.name).join(', ')
+    };
+
+    // Log to console for debugging
+    console.log('Experiment data:', experimentData);
+    
+    // Submit to Google Sheets
+    const success = await submitDataToGoogleSheets(experimentData);
+    
+    if (success) {
+      setDataSubmitted(true);
+      alert(`Thank you for participating! Your data has been recorded.\nOrder total: $${getTotalSpent().toFixed(2)}`);
+    } else {
+      alert(`Order completed! Total spent: $${getTotalSpent().toFixed(2)}\n(Note: Data logging temporarily unavailable)`);
+    }
+  };
+
+  // Welcome screen to collect participant info
+  if (currentView === 'welcome') {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="max-w-md mx-auto p-8 bg-gray-50 rounded-lg">
+          <h1 className="text-2xl font-bold text-center mb-6">Shopping Study</h1>
+          <p className="text-gray-700 mb-6 text-center">
+            You will be given a $50 budget to shop for tech products. 
+            Please shop as you normally would online.
+          </p>
+          <p className="text-sm text-gray-600 mb-6 text-center">
+            Participant ID: <span className="font-mono">{participantId}</span><br/>
+            Condition: <span className="font-mono">{condition}</span>
+          </p>
+          <button
+            onClick={() => setCurrentView('home')}
+            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700"
+          >
+            Start Shopping
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataSubmitted) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="max-w-md mx-auto p-8 bg-green-50 rounded-lg text-center">
+          <h1 className="text-2xl font-bold text-green-800 mb-4">Thank You!</h1>
+          <p className="text-green-700">
+            Your participation in this study has been recorded. 
+            You may now close this window.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentView === 'home') {
+    return (
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 py-4">
+          <div className="max-w-4xl mx-auto px-6 flex justify-between items-center">
+            <h1 className="text-2xl font-medium text-gray-900">TechStore</h1>
+            <nav className="flex space-x-8">
+              <button 
+                onClick={() => setCurrentView('home')} 
+                className="text-gray-700 hover:text-gray-900"
+              >
+                Home
+              </button>
+              <button 
+                onClick={() => setCurrentView('cart')} 
+                className="text-gray-700 hover:text-gray-900 relative"
+              >
+                Cart ({cart.length})
+              </button>
+            </nav>
+          </div>
+        </header>
+
+        {/* Budget Display */}
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          <div className="bg-gray-50 rounded-lg p-4 mb-8">
+            <p className="text-lg text-gray-700">
+              Budget: <span className="font-medium">${budget.toFixed(2)}</span> | 
+              Remaining: <span className="font-medium text-green-600">${getRemainingBudget().toFixed(2)}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Products Grid - Minimalist: Only 5 products, clean layout */}
+        <main className="max-w-4xl mx-auto px-6 pb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {products.map((product) => (
+              <div key={product.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                <img 
+                  src={product.image} 
+                  alt={product.name}
+                  className="w-full h-48 object-cover rounded-lg mb-4"
+                />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">{product.name}</h3>
+                <p className="text-xl font-medium text-gray-900 mb-4">${product.price}</p>
+                <button
+                  onClick={() => addToCart(product)}
+                  disabled={getRemainingBudget() < product.price}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {getRemainingBudget() < product.price ? 'Over Budget' : 'Add to Cart'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'cart') {
+    return (
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 py-4">
+          <div className="max-w-4xl mx-auto px-6 flex justify-between items-center">
+            <h1 className="text-2xl font-medium text-gray-900">TechStore</h1>
+            <nav className="flex space-x-8">
+              <button 
+                onClick={() => setCurrentView('home')} 
+                className="text-gray-700 hover:text-gray-900"
+              >
+                Home
+              </button>
+              <button 
+                onClick={() => setCurrentView('cart')} 
+                className="text-gray-700 hover:text-gray-900 relative"
+              >
+                Cart ({cart.length})
+              </button>
+            </nav>
+          </div>
+        </header>
+
+        <main className="max-w-4xl mx-auto px-6 py-8">
+          <h2 className="text-2xl font-medium text-gray-900 mb-6">Shopping Cart</h2>
+          
+          {cart.length === 0 ? (
+            <p className="text-gray-600">Your cart is empty.</p>
+          ) : (
+            <div className="space-y-4">
+              {cart.map((item, index) => (
+                <div key={`${item.id}-${index}`} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded" />
+                    <div>
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <p className="text-gray-600">${item.price}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removeFromCart(item.id)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              
+              <div className="border-t pt-4">
+                <div className="flex justify-between text-lg font-medium">
+                  <span>Total: ${getTotalSpent().toFixed(2)}</span>
+                  <span>Remaining Budget: ${getRemainingBudget().toFixed(2)}</span>
+                </div>
+                <button
+                  onClick={proceedToCheckout}
+                  disabled={cart.length === 0}
+                  className="w-full mt-4 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                  Proceed to Checkout
+                </button>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  if (currentView === 'checkout') {
+    return (
+      <div className="min-h-screen bg-white">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 py-4">
+          <div className="max-w-4xl mx-auto px-6 flex justify-between items-center">
+            <h1 className="text-2xl font-medium text-gray-900">TechStore</h1>
+            <nav className="flex space-x-8">
+              <button 
+                onClick={() => setCurrentView('home')} 
+                className="text-gray-700 hover:text-gray-900"
+              >
+                Home
+              </button>
+              <button 
+                onClick={() => setCurrentView('cart')} 
+                className="text-gray-700 hover:text-gray-900 relative"
+              >
+                Cart ({cart.length})
+              </button>
+            </nav>
+          </div>
+        </header>
+
+        <main className="max-w-4xl mx-auto px-6 py-8">
+          <h2 className="text-2xl font-medium text-gray-900 mb-6">Checkout</h2>
+          
+          {/* Order Summary */}
+          <div className="bg-gray-50 p-6 rounded-lg mb-8">
+            <h3 className="text-lg font-medium mb-4">Order Summary</h3>
+            {cart.map((item, index) => (
+              <div key={`${item.id}-${index}`} className="flex justify-between py-2">
+                <span>{item.name}</span>
+                <span>${item.price}</span>
+              </div>
+            ))}
+            <div className="border-t pt-2 mt-2">
+              <div className="flex justify-between font-medium">
+                <span>Total: ${getTotalSpent().toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Single Recommendation - Key for measuring impulse behavior */}
+          {showRecommendation && (
+            <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg mb-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Recommended for you</h3>
+              <div className="flex items-center space-x-4">
+                <img src={recommendedItem.image} alt={recommendedItem.name} className="w-20 h-20 object-cover rounded" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">{recommendedItem.name}</h4>
+                  <p className="text-gray-600">${recommendedItem.price}</p>
+                </div>
+                <button
+                  onClick={() => addToCart(recommendedItem)}
+                  disabled={getRemainingBudget() < recommendedItem.price}
+                  className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                >
+                  {getRemainingBudget() < recommendedItem.price ? 'Over Budget' : 'Add to Order'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={completeOrder}
+            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 text-lg font-medium"
+          >
+            Complete Order
+          </button>
+        </main>
+      </div>
+    );
+  }
+
+  // Default to welcome screen
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="max-w-md mx-auto p-8 bg-gray-50 rounded-lg">
+        <h1 className="text-2xl font-bold text-center mb-6">Shopping Study</h1>
+        <p className="text-gray-700 mb-6 text-center">
+          You will be given a $50 budget to shop for tech products. 
+          Please shop as you normally would online.
+        </p>
+        <p className="text-sm text-gray-600 mb-6 text-center">
+          Participant ID: <span className="font-mono">{participantId}</span><br/>
+          Condition: <span className="font-mono">{condition}</span>
+        </p>
+        <button
+          onClick={() => setCurrentView('home')}
+          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700"
+        >
+          Start Shopping
+        </button>
+      </div>
+    </div>
+  );
+}
     // 🚨 COPY YOUR WHOLE REACT APP CODE INTO HERE
     // Make sure the top is `function App() { ... }` and ends with:
     ReactDOM.render(<App />, document.getElementById('root'));
